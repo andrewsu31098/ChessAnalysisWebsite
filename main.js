@@ -1,17 +1,15 @@
-// NOTE: this example uses the chess.js library:
-// https://github.com/jhlywa/chess.js
-
-
+// Instantiate game model, view model, stockfish ai, and global variables.
 var board = null;
 var game = new Chess();
-
 var stock = new Worker('./node_modules/stockfish/src/stockfish.js');
 var moveList = '';
 
-//Different onmessage behavior depending if stockfish 
-// has been set up or not.
-var NEW_GAME_STARTED = false;
 
+
+
+
+
+// Stockfish communication protocol
 stock.onmessage = function (e) {
     console.log(e.data);
     var response = e.data.split(' ');
@@ -22,15 +20,13 @@ stock.onmessage = function (e) {
             break;
 
         case 'readyok':
-            NEW_GAME_STARTED = true;
             stock.postMessage('ucinewgame');
             break;
 
         case 'bestmove':
-            console.log('Best Move is:');
-            console.log(response[1]);
             moveList += ' ' + response[1];
-            console.log("New Movelist: " + moveList);
+            var verbose = __convert_UCI_to_Verbose(response[1]);
+            updateChessModel(verbose);
             break;
 
         default:
@@ -40,23 +36,14 @@ stock.onmessage = function (e) {
 }
 stock.postMessage('uci');
 
+
+// EVENT HANDLERS
 function onDragStart(source, piece, position, orientation) {
     // do not pick up pieces if the game is over
     if (game.game_over()) return false
 
     // only pick up pieces for White
     if (piece.search(/^b/) !== -1) return false
-}
-
-function makeRandomMove() {
-    var possibleMoves = game.moves()
-
-    // game over
-    if (possibleMoves.length === 0) return
-
-    var randomIdx = Math.floor(Math.random() * possibleMoves.length)
-    game.move(possibleMoves[randomIdx])
-    board.position(game.fen())
 }
 
 function onDrop(source, target) {
@@ -70,8 +57,7 @@ function onDrop(source, target) {
     // illegal move
     if (move === null) return 'snapback'
 
-    // make random legal move for black
-    window.setTimeout(makeRandomMove, 250)
+
 }
 
 // update the board position after the piece snap
@@ -94,6 +80,35 @@ function onSnapEnd() {
     stock.postMessage('position startpos moves' + moveList);
     stock.postMessage('go movetime 1000');
 }
+
+
+
+//HELPER FUNCTIONS 
+function __convert_UCI_to_Verbose(uci) {
+    // STOCKFISH.JS outputs UCI NOTATION
+    // CHESS.JS needs VERBOSE NOTATION. 
+    var verbose = {
+        from: uci.slice(0, 2),
+        to: uci.slice(2, 4)
+    };
+    if (uci.slice(4)) {
+        verbose.promotion = uci.slice(4);
+    }
+    return verbose;
+}
+
+function updateChessModel(verbose) {
+    // GIVES MOVE TO CHESS.JS MODEL.
+    // UPDATES CHESSBOARD.JS VIEW.
+    var possibleMoves = game.moves()
+
+    // game over
+    if (possibleMoves.length === 0) return
+
+    game.move(verbose);
+    board.position(game.fen())
+}
+
 
 
 var config = {
