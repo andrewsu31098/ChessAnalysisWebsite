@@ -1,0 +1,7 @@
+./chrome.exe --allow-file-access-from-files 'C:\Users\16264\Desktop\chesswebsite\index.html'
+
+## Run from chrome.exe folder.
+
+C:/Program\ Files/Google/Chrome/Application/chrome.exe --allow-file-access-from-files 'C:\Users\16264\Desktop\chesswebsite\index.html'
+
+## Run from anywhere
