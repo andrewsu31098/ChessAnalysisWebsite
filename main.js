@@ -3,7 +3,13 @@ var board = null;
 var game = new Chess();
 var stock = new Worker('./node_modules/stockfish/src/stockfish.js');
 var moveList = '';
+var openingMap = {};
 
+$.getJSON('./eco.json', function (data) {
+    for (let i = 0; i < data.length; i++) {
+        openingMap[data[i].fen] = data[i];
+    }
+});
 
 
 
@@ -119,3 +125,14 @@ var config = {
     onSnapEnd: onSnapEnd
 }
 board = Chessboard('myBoard', config);
+
+//Analyze Button
+$('#analysis-button').click(function () {
+    var fen = game.fen().split(' ').slice(0, 3).join(' ');
+    if (openingMap[fen]) {
+        $('#explanation-paragraph').text("Book Opening: " + openingMap[fen].name);
+    } else {
+        $('#explanation-paragraph').text("To do list hehe");
+    }
+    console.log(fen);
+})
