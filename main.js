@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            applyFenString('4k3/8/8/8/8/8/PPPPPPPP/4K3 w - - 0 1');
+            // applyFenString('4k3/p5pp/1p3p2/2p1p3/3p4/8/P1P1P1PP/4K3 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -87,10 +87,9 @@ function onSnapEnd() {
     moveList += startPos;
     moveList += endPos;
 
-    console.log("After player move: " + moveList);
-    console.log('position ' + initBoardPos + ' moves' + moveList);
+    console.log(`position ${initBoardPos} moves ${moveList}`);
 
-    stock.postMessage('position ' + initBoardPos + ' moves' + moveList);
+    stock.postMessage(`position ${initBoardPos} moves ${moveList}`);
     stock.postMessage('go movetime 1000');
 }
 
@@ -166,8 +165,8 @@ function analyzeMaterial(analysis, gHistory) {
 
     console.log(lastMove);
     if (lastMove.captured) {
-        console.log("Captured piece: " + lastMove.captured + " on " + lastMove.to);
-        var lostPieceCon = "Loss of material: " + __convert_chessLetter_to_fullName(lastMove.captured) + " on " + lastMove.to;
+        console.log(`Captured piece: ${lastMove.captured} on ${lastMove.to}`);
+        var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(lastMove.captured)} on ${lastMove.to}`;
         analysis.cons.push(lostPieceCon);
     }
     return analysis;
