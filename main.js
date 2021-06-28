@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            // applyFenString('4k3/p5pp/1p3p2/2p1p3/3p4/8/P1P1P1PP/4K3 w - - 0 1');
+            applyFenString('4k3/p5pp/1p3p2/2p1p3/3p4/8/P1P1P1PP/4K3 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -87,6 +87,7 @@ function onSnapEnd() {
     moveList += startPos;
     moveList += endPos;
 
+    console.log(retrievedMoves[retrievedMoves.length - 1]);
     console.log(`position ${initBoardPos} moves ${moveList}`);
 
     stock.postMessage(`position ${initBoardPos} moves ${moveList}`);
@@ -136,6 +137,16 @@ function __convert_chessLetter_to_fullName(chessLetter) {
     return fullname;
 }
 
+function __enPassant_change(square) {
+    // INCREMENTS NUMBER OF AN ENPASSANT CAPTURE 
+    // i.e ) e2 -> e3;
+    // USED TO GET THE POSITION OF THE CAPTURED PIECE.
+    var changedSquare = parseInt(square.slice(1)) + 1;
+    changedSquare = square.slice(0, 1) + changedSquare;
+    return changedSquare;
+}
+
+
 function updateChessModel(verbose) {
     // GIVES MOVE TO CHESS.JS MODEL.
     // UPDATES CHESSBOARD.JS VIEW.
@@ -165,8 +176,11 @@ function analyzeMaterial(analysis, gHistory) {
 
     console.log(lastMove);
     if (lastMove.captured) {
-        console.log(`Captured piece: ${lastMove.captured} on ${lastMove.to}`);
-        var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(lastMove.captured)} on ${lastMove.to}`;
+        // Need to account for enpassant captures.
+        var squareCaptured = (lastMove.flags.includes('e') ? __enPassant_change(lastMove.to) : lastMove.to);
+
+        console.log(`Captured piece: ${lastMove.captured} on ${squareCaptured}`);
+        var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(lastMove.captured)} on ${squareCaptured}`;
         analysis.cons.push(lostPieceCon);
     }
     return analysis;
