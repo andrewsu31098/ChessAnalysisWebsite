@@ -5,6 +5,8 @@ var stock = new Worker('./node_modules/stockfish/src/stockfish.js');
 var moveList = '';
 var openingMap = {};
 
+var initBoardPos = "startpos";
+
 // Instantiate Opening Book
 $.getJSON('./eco.json', function (data) {
     for (let i = 0; i < data.length; i++) {
@@ -28,6 +30,8 @@ stock.onmessage = function (e) {
 
         case 'readyok':
             stock.postMessage('ucinewgame');
+            // Update this fen string if you want a custom start pos.
+            applyFenString('4k3/8/8/8/8/8/PPPPPPPP/4K3 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -84,7 +88,9 @@ function onSnapEnd() {
     moveList += endPos;
 
     console.log("After player move: " + moveList);
-    stock.postMessage('position startpos moves' + moveList);
+    console.log('position ' + initBoardPos + ' moves' + moveList);
+
+    stock.postMessage('position ' + initBoardPos + ' moves' + moveList);
     stock.postMessage('go movetime 1000');
 }
 
@@ -143,11 +149,21 @@ function updateChessModel(verbose) {
     board.position(game.fen())
 }
 
+function applyFenString(fen) {
+    // UPDATE THE BOARD TO PLAY WITH A GIVEN FEN STRING
+    // UPDATES chess.js, chessboard.js, stockfish.js.
+    if (!game.load(fen)) {
+        console.log("chess.js failed to load");
+    }
+    board.position(game.fen());
+    initBoardPos = "fen " + fen;
+
+}
 
 //MY CODE: Board Analysis Functions
 function analyzeMaterial(analysis, gHistory) {
     var lastMove = gHistory[gHistory.length - 1];
-    alert(lastMove)
+
     console.log(lastMove);
     if (lastMove.captured) {
         console.log("Captured piece: " + lastMove.captured + " on " + lastMove.to);
