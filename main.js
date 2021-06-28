@@ -5,6 +5,7 @@ var stock = new Worker('./node_modules/stockfish/src/stockfish.js');
 var moveList = '';
 var openingMap = {};
 
+// Instantiate Opening Book
 $.getJSON('./eco.json', function (data) {
     for (let i = 0; i < data.length; i++) {
         openingMap[data[i].fen] = data[i];
@@ -15,7 +16,7 @@ $.getJSON('./eco.json', function (data) {
 
 
 
-// Stockfish communication protocol
+// STOCKFISH INTERACTION CODE
 stock.onmessage = function (e) {
     console.log(e.data);
     var response = e.data.split(' ');
@@ -43,7 +44,7 @@ stock.onmessage = function (e) {
 stock.postMessage('uci');
 
 
-// EVENT HANDLERS
+// UI EVENT HANDLERS
 function onDragStart(source, piece, position, orientation) {
     // do not pick up pieces if the game is over
     if (game.game_over()) return false
@@ -103,6 +104,33 @@ function __convert_UCI_to_Verbose(uci) {
     return verbose;
 }
 
+function __convert_chessLetter_to_fullName(chessLetter) {
+    var fullname = "";
+    switch (chessLetter) {
+        case "p":
+            fullname = "pawn";
+            break;
+        case "r":
+            fullname = "rook";
+            break;
+        case "n":
+            fullname = "knight";
+            break;
+        case "b":
+            fullname = "bishop";
+            break;
+        case "k":
+            fullname = "King";
+            break;
+        case "q":
+            fullname = "Queen";
+            break;
+        default:
+            fullname = "Error in convert chessletter function";
+    }
+    return fullname;
+}
+
 function updateChessModel(verbose) {
     // GIVES MOVE TO CHESS.JS MODEL.
     // UPDATES CHESSBOARD.JS VIEW.
@@ -116,6 +144,34 @@ function updateChessModel(verbose) {
 }
 
 
+//MY CODE: Board Analysis Functions
+function analyzeMaterial(analysis, gHistory) {
+    var lastMove = gHistory[gHistory.length - 1];
+    alert(lastMove)
+    console.log(lastMove);
+    if (lastMove.captured) {
+        console.log("Captured piece: " + lastMove.captured + " on " + lastMove.to);
+        var lostPieceCon = "Loss of material: " + __convert_chessLetter_to_fullName(lastMove.captured) + " on " + lastMove.to;
+        analysis.cons.push(lostPieceCon);
+    }
+    return analysis;
+}
+
+function analyzePosition() {
+    // Return analysis object. {pros: [string], cons: [string]};
+    var analysis = {
+        'pros': [],
+        'cons': []
+    };
+
+    var gameHistory = game.history({
+        verbose: true
+    });
+
+    analysis = analyzeMaterial(analysis, gameHistory);
+
+    return analysis;
+}
 
 var config = {
     draggable: true,
@@ -126,13 +182,23 @@ var config = {
 }
 board = Chessboard('myBoard', config);
 
-//Analyze Button
+//DOM INTERACTION
 $('#analysis-button').click(function () {
     var fen = game.fen().split(' ').slice(0, 3).join(' ');
     if (openingMap[fen]) {
         $('#explanation-paragraph').text("Book Opening: " + openingMap[fen].name);
     } else {
-        $('#explanation-paragraph').text("To do list hehe");
+        var analysisObject = analyzePosition();
+        console.log(analysisObject);
+        $("#explanation-paragraph").text("");
+        $('#pros-analysis').empty();
+        for (let i = 0; i < analysisObject.pros.length; i++) {
+            $('#pros-analysis').append("<li>" + analysisObject.pros[i] + "<\li>");
+        }
+        $('#cons-analysis').empty();
+        for (let i = 0; i < analysisObject.cons.length; i++) {
+            $('#cons-analysis').append("<li>" + analysisObject.cons[i] + "<\li>");
+        }
     }
     console.log(fen);
 })

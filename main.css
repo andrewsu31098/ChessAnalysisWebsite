@@ -6,13 +6,13 @@ body {
     background-color: #2E282A;
 }
 
-#info-container {
+#info-flex-container {
     display: flex;
     flex-direction: column;
     /* background-color: rgba(79, 81, 125, 0.5); */
 }
 
-#info-container>p {
+#explanation-container {
     width: 400px;
     border: 1px solid black;
     padding: 15px;
@@ -20,7 +20,7 @@ body {
     color: white;
 }
 
-#info-container>button {
+#analysis-button {
     width: 400px;
 }
 
