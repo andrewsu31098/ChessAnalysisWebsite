@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            applyFenString('4k3/p5pp/1p3p2/2p1p3/3p4/8/P1P1P1PP/4K3 w - - 0 1');
+            applyFenString('7k/PPP5/8/8/8/8/8/K7 w - - 0 10');
             break;
 
         case 'bestmove':
@@ -82,10 +82,14 @@ function onSnapEnd() {
     });
     var startPos = retrievedMoves[retrievedMoves.length - 1].from;
     var endPos = retrievedMoves[retrievedMoves.length - 1].to;
+    var promotion = retrievedMoves[retrievedMoves.length - 1].promotion;
 
     moveList += ' ';
     moveList += startPos;
     moveList += endPos;
+    if (promotion) {
+        moveList += promotion;
+    }
 
     console.log(retrievedMoves[retrievedMoves.length - 1]);
     console.log(`position ${initBoardPos} moves ${moveList}`);
