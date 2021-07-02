@@ -7,6 +7,8 @@ var openingMap = {};
 
 var initBoardPos = "startpos";
 
+var promotionOccuring = false;
+
 // Instantiate Opening Book
 $.getJSON('./eco.json', function (data) {
     for (let i = 0; i < data.length; i++) {
@@ -31,7 +33,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            applyFenString('7k/PPP5/8/8/8/8/8/K7 w - - 0 10');
+            applyFenString('7k/1P1P1P2/1P1P1P2/8/8/8/8/K7 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -45,38 +47,10 @@ stock.onmessage = function (e) {
     }
 
 }
-stock.postMessage('uci');
 
-
-// UI EVENT HANDLERS
-function onDragStart(source, piece, position, orientation) {
-    // do not pick up pieces if the game is over
-    if (game.game_over()) return false
-
-    // only pick up pieces for White
-    if (piece.search(/^b/) !== -1) return false
-}
-
-function onDrop(source, target) {
-    // see if the move is legal
-    var move = game.move({
-        from: source,
-        to: target,
-        promotion: 'q' // NOTE: always promote to a queen for example simplicity
-    })
-
-    // illegal move
-    if (move === null) return 'snapback'
-
-
-}
-
-// update the board position after the piece snap
-// for castling, en passant, pawn promotion
-function onSnapEnd() {
-    board.position(game.fen())
-
-    //Retrieve Last seen move to send to stockfish worker.
+function sendStockfishLastMove() {
+    //Retrieve player's last seen move and send to stockfish worker.
+    //Triggers stockfish's reply
     var retrievedMoves = game.history({
         verbose: true
     });
@@ -96,6 +70,80 @@ function onSnapEnd() {
 
     stock.postMessage(`position ${initBoardPos} moves ${moveList}`);
     stock.postMessage('go movetime 1000');
+}
+
+
+stock.postMessage('uci');
+
+
+// UI EVENT HANDLERS
+function onDragStart(source, piece, position, orientation) {
+    // do not pick up pieces if the game is over
+    if (game.game_over()) return false
+
+    // only pick up pieces for White
+    if (piece.search(/^b/) !== -1) return false
+
+
+    // User selects piece they want to promote to. 
+    // Game Model, Game UI, then stockfish is all updated with the new move.
+    if (promotionOccuring) {
+        promotionOccuring = false;
+        var correctPromotion = game.undo();
+        correctPromotion.promotion = piece.toLowerCase().slice(1);
+        updateChessModel(correctPromotion);
+        sendStockfishLastMove();
+        return false;
+    }
+
+}
+
+function onDrop(source, target, piece) {
+
+    // see if the move is legal
+    var move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q' // NOTE: always promote to a queen for example simplicity
+    })
+
+    // illegal move
+    if (move === null) return 'snapback'
+
+}
+
+// update the board position after the piece snap
+// for castling, en passant, pawn promotion
+function onSnapEnd(source, target, piece) {
+
+
+
+    //Update chessboardjs to chessboard model.
+    board.position(game.fen())
+
+    // GUI FOR PROMOTION
+    if (piece.slice(1).toLowerCase() == 'p' && reachedEndOfBoard(target)) {
+
+        console.log(__promotionOption_squares(target));
+
+        var promotionSquares = __promotionOption_squares(target);
+
+        var optionsPosition = {};
+        optionsPosition[promotionSquares[0]] = 'wQ';
+        optionsPosition[promotionSquares[1]] = 'wN';
+        optionsPosition[promotionSquares[2]] = 'wB';
+        optionsPosition[promotionSquares[3]] = 'wR';
+
+        board.position(optionsPosition);
+        promotionOccuring = true;
+
+
+        alert("Hello");
+    } else {
+        sendStockfishLastMove();
+    }
+
+
 }
 
 
@@ -150,6 +198,23 @@ function __enPassant_change(square) {
     return changedSquare;
 }
 
+function __promotionOption_squares(square) {
+    // RETURNS 4 SQUARES TO DISPLAY THE PROMOTION OPTIONS
+    var s1 = square;
+    var s2 = parseInt(square.slice(1)) - 1;
+    s2 = square.slice(0, 1) + s2;
+    var s3 = parseInt(square.slice(1)) - 2;
+    s3 = square.slice(0, 1) + s3;
+    var s4 = parseInt(square.slice(1)) - 3;
+    s4 = square.slice(0, 1) + s4;
+
+    var promotionSquares = [s1, s2, s3, s4];
+    return promotionSquares;
+}
+
+function reachedEndOfBoard(square) {
+    return (square.slice(1) == '8');
+}
 
 function updateChessModel(verbose) {
     // GIVES MOVE TO CHESS.JS MODEL.
@@ -173,6 +238,8 @@ function applyFenString(fen) {
     initBoardPos = "fen " + fen;
 
 }
+
+
 
 //MY CODE: Board Analysis Functions
 function analyzeMaterial(analysis, gHistory) {
@@ -214,6 +281,8 @@ var config = {
     onSnapEnd: onSnapEnd
 }
 board = Chessboard('myBoard', config);
+
+// $('.white-1e1d7').css("background-color", "pink");
 
 //DOM INTERACTION
 $('#analysis-button').click(function () {
