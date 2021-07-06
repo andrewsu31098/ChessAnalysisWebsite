@@ -33,7 +33,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            applyFenString('7k/1P1P1P2/1P1P1P2/8/8/8/8/K7 w - - 0 1');
+            // applyFenString('7k/1P1P1P2/1P1P1P2/8/8/8/8/K7 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -93,6 +93,7 @@ function onDragStart(source, piece, position, orientation) {
         correctPromotion.promotion = piece.toLowerCase().slice(1);
         updateChessModel(correctPromotion);
         sendStockfishLastMove();
+        setDefaultSquareLighting();
         return false;
     }
 
@@ -136,9 +137,7 @@ function onSnapEnd(source, target, piece) {
 
         board.position(optionsPosition);
         promotionOccuring = true;
-
-
-        alert("Hello");
+        darkenAllSquaresExcept(promotionSquares);
     } else {
         sendStockfishLastMove();
     }
@@ -239,23 +238,49 @@ function applyFenString(fen) {
 
 }
 
+function darkenAllSquaresExcept(squares) {
+    $('.square-55d63').css('opacity', '0.1');
+    for (let i = 0; i < squares.length; i++) {
+        $('.square-' + squares[i]).css('opacity', '1.0');
+    }
+}
+
+function setDefaultSquareLighting() {
+    $('.square-55d63').css('opacity', '1.0');
+}
 
 
 //MY CODE: Board Analysis Functions
 function analyzeMaterial(analysis, gHistory) {
-    var lastMove = gHistory[gHistory.length - 1];
+    var blackLastMove = gHistory[gHistory.length - 1];
+    var whiteLastMove = gHistory[gHistory.length - 2];
 
-    console.log(lastMove);
-    if (lastMove.captured) {
+
+    console.log(blackLastMove);
+    if (blackLastMove.captured) {
         // Need to account for enpassant captures.
-        var squareCaptured = (lastMove.flags.includes('e') ? __enPassant_change(lastMove.to) : lastMove.to);
+        var squareCaptured = (blackLastMove.flags.includes('e') ? __enPassant_change(blackLastMove.to) : blackLastMove.to);
 
-        console.log(`Captured piece: ${lastMove.captured} on ${squareCaptured}`);
-        var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(lastMove.captured)} on ${squareCaptured}`;
+        console.log(`Captured piece: ${blackLastMove.captured} on ${squareCaptured}`);
+        var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(blackLastMove.captured)} on ${squareCaptured}`;
         analysis.cons.push(lostPieceCon);
     }
+    if (whiteLastMove.captured) {
+        var squareCaptured = (whiteLastMove.flags.includes('e') ? __enPassant_change(whiteLastMove.to) : whiteLastMove.to);
+
+        var wonPieceCon = `Took material: ${__convert_chessLetter_to_fullName(whiteLastMove.captured)} on ${squareCaptured}`;
+        analysis.pros.push(wonPieceCon);
+    }
+
+
+
     return analysis;
 }
+
+function analyzeFiles(analysis) {
+    ;
+}
+
 
 function analyzePosition() {
     // Return analysis object. {pros: [string], cons: [string]};
@@ -282,8 +307,6 @@ var config = {
 }
 board = Chessboard('myBoard', config);
 
-// $('.white-1e1d7').css("background-color", "pink");
-
 //DOM INTERACTION
 $('#analysis-button').click(function () {
     var fen = game.fen().split(' ').slice(0, 3).join(' ');
@@ -293,13 +316,15 @@ $('#analysis-button').click(function () {
         var analysisObject = analyzePosition();
         console.log(analysisObject);
         $("#explanation-paragraph").text("");
+
         $('#pros-analysis').empty();
         for (let i = 0; i < analysisObject.pros.length; i++) {
-            $('#pros-analysis').append("<li>" + analysisObject.pros[i] + "<\li>");
+            $('#pros-analysis').append("<li>" + analysisObject.pros[i] + "</li>");
         }
+
         $('#cons-analysis').empty();
         for (let i = 0; i < analysisObject.cons.length; i++) {
-            $('#cons-analysis').append("<li>" + analysisObject.cons[i] + "<\li>");
+            $('#cons-analysis').append(("<li>" + analysisObject.cons[i] + "</li>"));
         }
     }
     console.log(fen);
