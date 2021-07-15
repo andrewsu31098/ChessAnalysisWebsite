@@ -23,6 +23,13 @@ body {
     width: 400px;
 }
 
+#end-button {
+    width: 400px;
+    color: white;
+    background-color: black;
+    margin-top: 20px;
+}
+
 #pros-analysis {
     color: #44E63B;
 }

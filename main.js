@@ -16,7 +16,15 @@ $.getJSON('./eco.json', function (data) {
     }
 });
 
-
+//Establish Piece Value Map
+var pieceValueMap = {
+    'p': 1,
+    'n': 3,
+    'b': 3,
+    'r': 5,
+    'q': 9,
+    'k': 100
+};
 
 
 
@@ -33,7 +41,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            // applyFenString('7k/1P1P1P2/1P1P1P2/8/8/8/8/K7 w - - 0 1');
+            // applyFenString('4k3/p1ppp1pp/8/1p2p3/P2P1P2/8/P1P2PPP/4K3 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -142,7 +150,6 @@ function onSnapEnd(source, target, piece) {
         sendStockfishLastMove();
     }
 
-
 }
 
 
@@ -211,9 +218,236 @@ function __promotionOption_squares(square) {
     return promotionSquares;
 }
 
-function reachedEndOfBoard(square) {
-    return (square.slice(1) == '8');
+function getAdjKing(color, square) {
+    // RETURNS KINGS SQUARE IF ADJACENT TO THE GIVEN SQUARE. NULL OTHERWISE
+    var squareFileCode = square.slice(0, 1).charCodeAt(0);
+    var squareRow = parseInt(square.slice(1));
+    var kingsSquare = null;
+    var adj1 = null;
+    var adj2 = null;
+
+    if (color === 'w') {
+        adj1 = String.fromCharCode(squareFileCode - 1) + (squareRow - 1);
+        adj2 = String.fromCharCode(squareFileCode + 1) + (squareRow - 1);
+    } else if (color === 'b') {
+        adj1 = String.fromCharCode(squareFileCode - 1) + (squareRow + 1);
+        adj2 = String.fromCharCode(squareFileCode + 1) + (squareRow + 1);
+    } else {
+        throw new Error('getAdjKing error');
+    }
+
+    var adjOneObject = game.get(adj1);
+    var adjTwoObject = game.get(adj2);
+    if (adjOneObject && adjOneObject.type === 'k' && adjOneObject.color === color) {
+        kingsSquare = adj1;
+    }
+    if (adjTwoObject && adjTwoObject.type === 'k' && adjTwoObject.color === color) {
+        kingsSquare = adj2;
+    }
+
+    return kingsSquare;
+
 }
+
+function __increment_file(square) {
+    var squareFileCode = square.slice(0, 1).charCodeAt(0);
+    var squareRow = square.slice(1);
+    return String.fromCharCode(squareFileCode + 1) + squareRow;
+}
+
+function __increment_row(square) {
+    var squareFile = square.slice(0, 1);
+    var squareRow = parseInt(square.slice(1));
+    return squareFile + (squareRow + 1);
+}
+
+function __decrement_file(square) {
+    var squareFileCode = square.slice(0, 1).charCodeAt(0);
+    var squareRow = square.slice(1);
+    return String.fromCharCode(squareFileCode - 1) + squareRow;
+}
+
+function __decrement_row(square) {
+    var squareFile = square.slice(0, 1);
+    var squareRow = parseInt(square.slice(1));
+    return squareFile + (squareRow - 1);
+}
+
+function extrapolateDiagonal(color, start, end) {
+    // Takes two ends of a short diagonal, returns the end-point of the long diagonal.
+    var matchingIncFile = end.slice(0, 1) === __increment_file(start).slice(0, 1);
+    var matchingDecFile = end.slice(0, 1) === __decrement_file(start).slice(0, 1);
+    var matchingIncRow = parseInt(start.slice(1)) + 1 == end.slice(1);
+    var matchingDecRow = parseInt(start.slice(1)) - 1 == end.slice(1)
+
+    console.log("The start diagonal: " + start);
+    console.log("The end diagonal: " + end);
+    console.log("Matching incremented file: " + matchingIncFile);
+    console.log("Matching decrementing file: " + matchingDecFile);
+    console.log("Start row: " + start.slice(1));
+    console.log("End row: " + end.slice(1));
+    console.log("Start + 1 equal to End Strict: " + ((parseInt(start.slice(1)) + 1) === end.slice(1)));
+    console.log("Start + 1 equal to End Loose: " + ((parseInt(start.slice(1)) + 1) == end.slice(1)));
+
+
+
+    if (matchingIncFile && matchingIncRow && color == 'w') {
+        while (!reachedSideOfBoard(end)) {
+            alert("Before end: " + end);
+            end = __increment_file(end);
+            end = __increment_row(end);
+            alert("After end: " + end);
+        }
+    } else if (matchingDecFile && matchingIncRow && color == 'w') {
+        while (!reachedSideOfBoard(end)) {
+            alert("Before end: " + end);
+            end = __decrement_file(end);
+            end = __increment_row(end);
+            alert("After end: " + end);
+        }
+    } else if (matchingIncFile && matchingDecRow && color == 'b') {
+        while (!reachedSideOfBoard(end)) {
+            alert("Before end: " + end);
+            end = __increment_file(end);
+            end = __decrement_row(end);
+            alert("After end: " + end);
+        }
+    } else if (matchingDecFile && matchingDecRow && color == 'b') {
+        while (!reachedSideOfBoard(end)) {
+            alert("Before end: " + end);
+            end = __decrement_file(end);
+            end = __decrement_row(end);
+            alert("After end: " + end);
+        }
+    } else {
+        alert("error");
+        throw Error("extrapolate Diagonal");
+    }
+
+    return end;
+}
+
+function is_Diagonal(start, end) {
+    var startFile = start.slice(0, 1);
+    var startRow = parseInt(start.slice(1));
+
+    var endFile = end.slice(0, 1);
+    var endRow = parseInt(end.slice(1));
+
+    var startCode = startFile.charCodeAt(0);
+    var endCode = endFile.charCodeAt(0);
+    if (Math.abs(startRow - endRow) === Math.abs(startCode - endCode)) {
+        return true;
+    }
+    return false;
+}
+
+
+
+function __piece_between_two_squares(color, piece, start, end) {
+    // CHECK IF A PIECE IS BETWEEN 2 SQUARES. 
+    // WORKS ONLY ON DIAGONALS AND FILES
+    var startFile = start.slice(0, 1);
+    var startRow = parseInt(start.slice(1));
+
+    var endFile = end.slice(0, 1);
+    var endRow = parseInt(end.slice(1));
+
+    // SAME FILE
+    if (startFile === endFile) {
+        // Sanitizing Input so start < end before iteration.
+        let temp = startRow;
+        startRow = (startRow < endRow) ? startRow : endRow;
+        endRow = (startRow === endRow) ? temp : endRow;
+
+        for (let i = startRow; i < endRow + 1; i++) {
+            let pieceObject = game.get(startFile + i);
+            if (pieceObject && piece === pieceObject.type && color === pieceObject.color) {
+                return true;
+            }
+        }
+        return false;
+    } else {
+        // SAME DIAGONAL
+        if (!is_Diagonal(start, end)) {
+            return false;
+            alert("Error piece_between_two_squares diagonal check");
+        }
+        var startFileCode = startFile.charCodeAt(0);
+        var endFileCode = endFile.charCodeAt(0);
+        if (startRow < endRow) {
+            for (let i = 0; i < endRow - startRow + 1; i++) {
+                let newFile = String.fromCharCode(startFileCode + i);
+                let newRow = startRow + i;
+                let pieceObject = game.get(newFile + newRow);
+                if (pieceObject && pieceObject.type === piece && pieceObject.color === color) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            for (let i = 0; i < startRow - endRow + 1; i++) {
+                let newFile = String.fromCharCode(startFileCode + i);
+                let newRow = startRow - i;
+                let pieceObject = game.get(newFile + newRow);
+                if (pieceObject && pieceObject.type === piece && pieceObject.color === color) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+    }
+
+}
+
+
+
+function __diagonal_is_weak(color, start, end) {
+    var numPawnDefenders = 0;
+
+    if (!is_Diagonal(start, end)) {
+        return false;
+    }
+
+    var startFile = start.slice(0, 1);
+    var startFileCode = startFile.charCodeAt(0);
+    var startRow = parseInt(start.slice(1));
+
+    var endFile = end.slice(0, 1);
+    var endRow = parseInt(end.slice(1));
+
+    if (startRow < endRow) {
+        for (let i = 0; i < endRow - startRow + 1; i++) {
+            let newFile = String.fromCharCode(startFileCode + i);
+            let newRow = startRow + i;
+            if (__piece_between_two_squares(color, 'p', newFile + '1', newFile + newRow)) {
+                numPawnDefenders++;
+            }
+        }
+    } else {
+        for (let i = 0; i < startRow - endRow + 1; i++) {
+            let newFile = String.fromCharCode(startFileCode + i);
+            let newRow = startRow - i;
+            if (__piece_between_two_squares(color, 'p', newFile + '1', newFile + newRow)) {
+                numPawnDefenders++;
+            }
+        }
+    }
+
+    console.log("Num Defenders: " + numPawnDefenders);
+    return (numPawnDefenders < 4);
+}
+
+function reachedEndOfBoard(square) {
+    // NEEDS UPDATING IF WANTING TO ALLOW BLACK PLAY
+    return (square.slice(1) === '8');
+}
+
+function reachedSideOfBoard(square) {
+    return (square.slice(0, 1) === 'a' || square.slice(0, 1) === 'h');
+}
+
 
 function updateChessModel(verbose) {
     // GIVES MOVE TO CHESS.JS MODEL.
@@ -250,13 +484,14 @@ function setDefaultSquareLighting() {
 }
 
 
+
+
+
 //MY CODE: Board Analysis Functions
 function analyzeMaterial(analysis, gHistory) {
     var blackLastMove = gHistory[gHistory.length - 1];
     var whiteLastMove = gHistory[gHistory.length - 2];
 
-
-    console.log(blackLastMove);
     if (blackLastMove.captured) {
         // Need to account for enpassant captures.
         var squareCaptured = (blackLastMove.flags.includes('e') ? __enPassant_change(blackLastMove.to) : blackLastMove.to);
@@ -265,28 +500,81 @@ function analyzeMaterial(analysis, gHistory) {
         var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(blackLastMove.captured)} on ${squareCaptured}`;
         analysis.cons.push(lostPieceCon);
     }
+
     if (whiteLastMove.captured) {
+        // Need to account for enpassant captures.
         var squareCaptured = (whiteLastMove.flags.includes('e') ? __enPassant_change(whiteLastMove.to) : whiteLastMove.to);
 
-        var wonPieceCon = `Took material: ${__convert_chessLetter_to_fullName(whiteLastMove.captured)} on ${squareCaptured}`;
-        analysis.pros.push(wonPieceCon);
+        console.log(`Captured piece: ${whiteLastMove.captured} on ${squareCaptured}`);
+        var wonPiecePro = `Won material: ${__convert_chessLetter_to_fullName(whiteLastMove.captured)} on ${squareCaptured}`;
+        analysis.pros.push(wonPiecePro);
     }
-
-
 
     return analysis;
 }
 
-function analyzeFiles(analysis) {
-    ;
+function analyzeFiles(analysis, gHistory) {
+    var blackLastMove = gHistory[gHistory.length - 1];
+    var whiteLastMove = gHistory[gHistory.length - 2];
+
+
+    if (blackLastMove.captured && blackLastMove.piece === "p") {
+        var fileOpened = blackLastMove.from.slice(0, 1);
+        if (__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`Black's pawn capture created a semi-open ${fileOpened} file.`);
+        } else if (!__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && __piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`Black's pawn capture created a semi-open ${fileOpened} file.`);
+        } else if (!__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`Black's pawn capture opened the ${fileOpened} file.`);
+        }
+    }
+
+    if (whiteLastMove.captured && whiteLastMove.piece === "p") {
+        var fileOpened = whiteLastMove.from.slice(0, 1);
+        if (__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`White's pawn capture created a semi-open ${fileOpened} file.`);
+        } else if (!__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && __piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`White's pawn capture created a semi-open ${fileOpened} file.`);
+        } else if (!__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
+            analysis.neutral.push(`White's pawn capture opened the ${fileOpened} file.`);
+        }
+    }
+
+    return analysis;
 }
+
+function analyzeDiagonals(analysis, gHistory) {
+    var blackLastMove = gHistory[gHistory.length - 1];
+    var whiteLastMove = gHistory[gHistory.length - 2];
+
+    var startSquare = null;
+    var endSquare = null;
+    alert("analyzeDiagonals hit");
+    if (blackLastMove.piece === 'p' && getAdjKing('b', blackLastMove.from)) {
+        startSquare = getAdjKing('b', blackLastMove.from);
+        endSquare = extrapolateDiagonal('b', startSquare, blackLastMove.from);
+        if (__diagonal_is_weak('b', startSquare, endSquare)) {
+            analysis.pros.push(`${startSquare} to ${endSquare} diagonal weakened for Black`);
+        }
+    }
+    if (whiteLastMove.piece === 'p' && getAdjKing('w', whiteLastMove.from)) {
+        startSquare = getAdjKing('w', whiteLastMove.from);
+        endSquare = extrapolateDiagonal('w', startSquare, whiteLastMove.from);
+        if (__diagonal_is_weak('w', startSquare, endSquare)) {
+            analysis.cons.push(`${startSquare} to ${endSquare} diagonal weakened for White`);
+        }
+    }
+    return analysis;
+}
+
 
 
 function analyzePosition() {
     // Return analysis object. {pros: [string], cons: [string]};
     var analysis = {
         'pros': [],
-        'cons': []
+        'cons': [],
+        'neutral': []
     };
 
     var gameHistory = game.history({
@@ -294,6 +582,8 @@ function analyzePosition() {
     });
 
     analysis = analyzeMaterial(analysis, gameHistory);
+    analysis = analyzeFiles(analysis, gameHistory);
+    analysis = analyzeDiagonals(analysis, gameHistory);
 
     return analysis;
 }
@@ -325,6 +615,11 @@ $('#analysis-button').click(function () {
         $('#cons-analysis').empty();
         for (let i = 0; i < analysisObject.cons.length; i++) {
             $('#cons-analysis').append(("<li>" + analysisObject.cons[i] + "</li>"));
+        }
+
+        $('#neutral-analysis').empty();
+        for (let i = 0; i < analysisObject.neutral.length; i++) {
+            $('#neutral-analysis').append(("<li>" + analysisObject.neutral[i] + "</li>"));
         }
     }
     console.log(fen);

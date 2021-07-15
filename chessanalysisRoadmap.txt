@@ -1,0 +1,37 @@
+Material
+ - Indicate loss or gain of material
+
+
+Files
+ - Indicate opening of files and closing of files. 
+ - Bonus: Indicate which side can take advantage of it first
+ - Bonus: Indicate if file opening exposes king.
+
+
+Diagonals
+- Indicating opening of diagonals and closing of diagonals
+- Bonus: Indicate which side can take advantage of it first.
+- Bonus: Indicate if file opening exposes king.
+
+
+Squares
+- Indicate taking control of key squares. 
+- Defining "Key squares" is critical in figuring out our requirements.
+- (Squares that open up tactics, or positional advantages?)
+
+
+Development
+- Indicate movement of minor pieces that expand potential and opportunities of attack for said pieces.
+
+
+Minor Pieces 
+- Indicate trades of pieces. 
+- Ex) Loss of double bishop (Bad)
+
+
+
+Pawn Structure
+- Isolated pawns are weaknesses. 
+- Backward pawns are weaknesses.
+- Doubled pawns control much space but also are weak.
+- Hanging pawns control much space but also are weak. 
