@@ -16,17 +16,6 @@ $.getJSON('./eco.json', function (data) {
     }
 });
 
-//Establish Piece Value Map
-var pieceValueMap = {
-    'p': 1,
-    'n': 3,
-    'b': 3,
-    'r': 5,
-    'q': 9,
-    'k': 100
-};
-
-
 
 // STOCKFISH INTERACTION CODE
 stock.onmessage = function (e) {
@@ -124,9 +113,6 @@ function onDrop(source, target, piece) {
 // update the board position after the piece snap
 // for castling, en passant, pawn promotion
 function onSnapEnd(source, target, piece) {
-
-
-
     //Update chessboardjs to chessboard model.
     board.position(game.fen())
 
@@ -149,9 +135,7 @@ function onSnapEnd(source, target, piece) {
     } else {
         sendStockfishLastMove();
     }
-
 }
-
 
 
 //HELPER FUNCTIONS 
@@ -218,6 +202,54 @@ function __promotionOption_squares(square) {
     return promotionSquares;
 }
 
+function getFileSquares(file) {
+    var squares = [];
+    for (let i = 1; i < 9; i++) {
+        squares.push(file + i);
+    }
+    return squares;
+}
+
+function getDiagonalSquares(start, end) {
+    var squares = [];
+    var incrementFile = start.slice(0, 1).charCodeAt(0) < end.slice(0, 1).charCodeAt(0);
+    var decrementFile = start.slice(0, 1).charCodeAt(0) > end.slice(0, 1).charCodeAt(0);
+    var incrementRow = parseInt(start.slice(1)) < parseInt(end.slice(1));
+    var decrementRow = parseInt(start.slice(1)) > parseInt(end.slice(1));
+
+    if (!is_Diagonal(start, end))
+        throw Error("getDiagonalSquares");
+
+    squares.push(start);
+    if (incrementFile && incrementRow) {
+        while (start !== end) {
+            start = __increment_file(start);
+            start = __increment_row(start);
+            squares.push(start);
+        }
+    } else if (incrementFile && decrementRow) {
+        while (start !== end) {
+            start = __increment_file(start);
+            start = __decrement_row(start);
+            squares.push(start);
+        }
+    } else if (decrementFile && incrementRow) {
+        while (start !== end) {
+            start = __decrement_file(start);
+            start = __increment_row(start);
+            squares.push(start);
+        }
+    } else if (decrementFile && decrementRow) {
+        while (start !== end) {
+            start = __decrement_file(start);
+            start = __decrement_row(start);
+            squares.push(start);
+        }
+    }
+    return squares;
+}
+
+
 function getAdjKing(color, square) {
     // RETURNS KINGS SQUARE IF ADJACENT TO THE GIVEN SQUARE. NULL OTHERWISE
     var squareFileCode = square.slice(0, 1).charCodeAt(0);
@@ -278,7 +310,7 @@ function extrapolateDiagonal(color, start, end) {
     var matchingIncFile = end.slice(0, 1) === __increment_file(start).slice(0, 1);
     var matchingDecFile = end.slice(0, 1) === __decrement_file(start).slice(0, 1);
     var matchingIncRow = parseInt(start.slice(1)) + 1 == end.slice(1);
-    var matchingDecRow = parseInt(start.slice(1)) - 1 == end.slice(1)
+    var matchingDecRow = parseInt(start.slice(1)) - 1 == end.slice(1);
 
     console.log("The start diagonal: " + start);
     console.log("The end diagonal: " + end);
@@ -293,34 +325,25 @@ function extrapolateDiagonal(color, start, end) {
 
     if (matchingIncFile && matchingIncRow && color == 'w') {
         while (!reachedSideOfBoard(end)) {
-            alert("Before end: " + end);
             end = __increment_file(end);
             end = __increment_row(end);
-            alert("After end: " + end);
         }
     } else if (matchingDecFile && matchingIncRow && color == 'w') {
         while (!reachedSideOfBoard(end)) {
-            alert("Before end: " + end);
             end = __decrement_file(end);
             end = __increment_row(end);
-            alert("After end: " + end);
         }
     } else if (matchingIncFile && matchingDecRow && color == 'b') {
         while (!reachedSideOfBoard(end)) {
-            alert("Before end: " + end);
             end = __increment_file(end);
             end = __decrement_row(end);
-            alert("After end: " + end);
         }
     } else if (matchingDecFile && matchingDecRow && color == 'b') {
         while (!reachedSideOfBoard(end)) {
-            alert("Before end: " + end);
             end = __decrement_file(end);
             end = __decrement_row(end);
-            alert("After end: " + end);
         }
     } else {
-        alert("error");
         throw Error("extrapolate Diagonal");
     }
 
@@ -341,8 +364,6 @@ function is_Diagonal(start, end) {
     }
     return false;
 }
-
-
 
 function __piece_between_two_squares(color, piece, start, end) {
     // CHECK IF A PIECE IS BETWEEN 2 SQUARES. 
@@ -370,8 +391,7 @@ function __piece_between_two_squares(color, piece, start, end) {
     } else {
         // SAME DIAGONAL
         if (!is_Diagonal(start, end)) {
-            return false;
-            alert("Error piece_between_two_squares diagonal check");
+            throw Error("piece_between_two_squares received neither a diagonal nor file");
         }
         var startFileCode = startFile.charCodeAt(0);
         var endFileCode = endFile.charCodeAt(0);
@@ -400,8 +420,6 @@ function __piece_between_two_squares(color, piece, start, end) {
     }
 
 }
-
-
 
 function __diagonal_is_weak(color, start, end) {
     var numPawnDefenders = 0;
@@ -434,7 +452,6 @@ function __diagonal_is_weak(color, start, end) {
             }
         }
     }
-
     console.log("Num Defenders: " + numPawnDefenders);
     return (numPawnDefenders < 4);
 }
@@ -447,7 +464,6 @@ function reachedEndOfBoard(square) {
 function reachedSideOfBoard(square) {
     return (square.slice(0, 1) === 'a' || square.slice(0, 1) === 'h');
 }
-
 
 function updateChessModel(verbose) {
     // GIVES MOVE TO CHESS.JS MODEL.
@@ -481,10 +497,16 @@ function darkenAllSquaresExcept(squares) {
 
 function setDefaultSquareLighting() {
     $('.square-55d63').css('opacity', '1.0');
+    $('.white-1e1d7').css('background-color', '#f0d9b5');
+    $('.black-3c85d').css('background-color', '#b58863');
 }
 
+function highlightSquares(squares) {
+    for (let i = 0; i < squares.length; i++) {
+        $('.square-' + squares[i]).css('background-color', '#69140e');
+    }
 
-
+}
 
 
 //MY CODE: Board Analysis Functions
@@ -498,7 +520,12 @@ function analyzeMaterial(analysis, gHistory) {
 
         console.log(`Captured piece: ${blackLastMove.captured} on ${squareCaptured}`);
         var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(blackLastMove.captured)} on ${squareCaptured}`;
-        analysis.cons.push(lostPieceCon);
+        var materialObject = {
+            statement: lostPieceCon,
+            squares: [squareCaptured]
+        }
+        analysis.cons.push(materialObject);
+
     }
 
     if (whiteLastMove.captured) {
@@ -507,7 +534,11 @@ function analyzeMaterial(analysis, gHistory) {
 
         console.log(`Captured piece: ${whiteLastMove.captured} on ${squareCaptured}`);
         var wonPiecePro = `Won material: ${__convert_chessLetter_to_fullName(whiteLastMove.captured)} on ${squareCaptured}`;
-        analysis.pros.push(wonPiecePro);
+        var materialObject = {
+            statement: wonPiecePro,
+            squares: [squareCaptured]
+        }
+        analysis.pros.push(materialObject);
     }
 
     return analysis;
@@ -520,24 +551,38 @@ function analyzeFiles(analysis, gHistory) {
 
     if (blackLastMove.captured && blackLastMove.piece === "p") {
         var fileOpened = blackLastMove.from.slice(0, 1);
+        var fileStatement = "";
+
         if (__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`Black's pawn capture created a semi-open ${fileOpened} file.`);
+            fileStatement = `Black's pawn capture created a semi-open ${fileOpened} file.`;
         } else if (!__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && __piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`Black's pawn capture created a semi-open ${fileOpened} file.`);
+            fileStatement = `Black's pawn capture created a semi-open ${fileOpened} file.`;
         } else if (!__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`Black's pawn capture opened the ${fileOpened} file.`);
+            fileStatement = `Black's pawn capture opened the ${fileOpened} file.`;
         }
+        var fileObject = {
+            statement: fileStatement,
+            squares: getFileSquares(fileOpened)
+        }
+        analysis.neutral.push(fileObject)
     }
 
     if (whiteLastMove.captured && whiteLastMove.piece === "p") {
         var fileOpened = whiteLastMove.from.slice(0, 1);
+        var fileStatement = "";
+
         if (__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`White's pawn capture created a semi-open ${fileOpened} file.`);
+            fileStatement = `White's pawn capture created a semi-open ${fileOpened} file.`;
         } else if (!__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && __piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`White's pawn capture created a semi-open ${fileOpened} file.`);
+            fileStatement = `White's pawn capture created a semi-open ${fileOpened} file.`;
         } else if (!__piece_between_two_squares('b', 'p', fileOpened + '1', fileOpened + '8') && !__piece_between_two_squares('w', 'p', fileOpened + '1', fileOpened + '8')) {
-            analysis.neutral.push(`White's pawn capture opened the ${fileOpened} file.`);
+            fileStatement = `White's pawn capture opened the ${fileOpened} file.`;
         }
+        var fileObject = {
+            statement: fileStatement,
+            squares: getFileSquares(fileOpened)
+        }
+        analysis.neutral.push(fileObject);
     }
 
     return analysis;
@@ -549,19 +594,28 @@ function analyzeDiagonals(analysis, gHistory) {
 
     var startSquare = null;
     var endSquare = null;
-    alert("analyzeDiagonals hit");
+
+    var diagonalObject = {};
+
     if (blackLastMove.piece === 'p' && getAdjKing('b', blackLastMove.from)) {
         startSquare = getAdjKing('b', blackLastMove.from);
         endSquare = extrapolateDiagonal('b', startSquare, blackLastMove.from);
         if (__diagonal_is_weak('b', startSquare, endSquare)) {
-            analysis.pros.push(`${startSquare} to ${endSquare} diagonal weakened for Black`);
+            diagonalObject.statement = `${startSquare} to ${endSquare} diagonal weakened for Black`;
+            diagonalObject.squares = getDiagonalSquares(startSquare, endSquare);
+            // diagonalObject.squares = ['a1'];
+            analysis.pros.push(diagonalObject);
         }
+
     }
     if (whiteLastMove.piece === 'p' && getAdjKing('w', whiteLastMove.from)) {
         startSquare = getAdjKing('w', whiteLastMove.from);
         endSquare = extrapolateDiagonal('w', startSquare, whiteLastMove.from);
         if (__diagonal_is_weak('w', startSquare, endSquare)) {
-            analysis.cons.push(`${startSquare} to ${endSquare} diagonal weakened for White`);
+            diagonalObject.statement = `${startSquare} to ${endSquare} diagonal weakened for White`;
+            diagonalObject.squares = getDiagonalSquares(startSquare, endSquare);
+            // diagonalObject.squares = ['a1'];
+            analysis.cons.push(diagonalObject);
         }
     }
     return analysis;
@@ -598,6 +652,10 @@ var config = {
 board = Chessboard('myBoard', config);
 
 //DOM INTERACTION
+
+var explainCounter = 0;
+var explainLength = 0;
+
 $('#analysis-button').click(function () {
     var fen = game.fen().split(' ').slice(0, 3).join(' ');
     if (openingMap[fen]) {
@@ -609,18 +667,67 @@ $('#analysis-button').click(function () {
 
         $('#pros-analysis').empty();
         for (let i = 0; i < analysisObject.pros.length; i++) {
-            $('#pros-analysis').append("<li>" + analysisObject.pros[i] + "</li>");
+            $('#pros-analysis').append("<li>" + analysisObject.pros[i].statement + "</li>");
         }
 
         $('#cons-analysis').empty();
         for (let i = 0; i < analysisObject.cons.length; i++) {
-            $('#cons-analysis').append(("<li>" + analysisObject.cons[i] + "</li>"));
+            $('#cons-analysis').append(("<li>" + analysisObject.cons[i].statement + "</li>"));
         }
 
         $('#neutral-analysis').empty();
         for (let i = 0; i < analysisObject.neutral.length; i++) {
-            $('#neutral-analysis').append(("<li>" + analysisObject.neutral[i] + "</li>"));
+            $('#neutral-analysis').append(("<li>" + analysisObject.neutral[i].statement + "</li>"));
         }
+
+        explainLength = analysisObject.pros.length + analysisObject.cons.length + analysisObject.neutral.length;
+        if (explainLength > 0) {
+            $('#next-button').show();
+            $('#analysis-button').hide();
+        }
+
     }
-    console.log(fen);
+
+});
+
+$('#next-button').click(function () {
+    $('#pros-analysis li').css("background-color", "");
+    $('#cons-analysis li').css("background-color", "");
+    $('#neutral-analysis li').css("background-color", "");
+
+    setDefaultSquareLighting();
+
+    var analysisObject = analyzePosition();
+
+    if (explainCounter < explainLength) {
+        var prosLength = $('#pros-analysis li').length;
+        var consLength = $('#cons-analysis li').length;
+        var neutralLength = $('#neutral-analysis li').length;
+
+        var index = explainCounter;
+
+        if (index < prosLength) {
+            $('#pros-analysis li').eq(index).css("background-color", "#69140e");
+            highlightSquares(analysisObject.pros[index].squares);
+        } else {
+            index -= prosLength;
+            if (index < consLength) {
+                $('#cons-analysis li').eq(index).css("background-color", "#69140e");
+                highlightSquares(analysisObject.cons[index].squares);
+            } else {
+                index -= consLength;
+                if (index < neutralLength) {
+                    $('#neutral-analysis li').eq(index).css("background-color", "#69140e");
+                    highlightSquares(analysisObject.neutral[index].squares);
+                }
+            }
+        }
+        explainCounter++;
+
+    } else {
+        explainCounter = 0;
+        explainLength = 0;
+        $('#next-button').hide();
+        $('#analysis-button').show();
+    }
 })

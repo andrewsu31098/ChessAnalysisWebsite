@@ -23,6 +23,12 @@ body {
     width: 400px;
 }
 
+#next-button {
+    width: 400px;
+    color: white;
+    background-color: black;
+}
+
 #end-button {
     width: 400px;
     color: white;
