@@ -116,6 +116,11 @@ function onSnapEnd(source, target, piece) {
     //Update chessboardjs to chessboard model.
     board.position(game.fen())
 
+    // Reset analysis if player makes a move.
+    if ($("#next-button").is(":visible")) {
+        resetButtons();
+    }
+
     // GUI FOR PROMOTION
     if (piece.slice(1).toLowerCase() == 'p' && reachedEndOfBoard(target)) {
 
@@ -508,6 +513,18 @@ function highlightSquares(squares) {
 
 }
 
+function resetButtons() {
+    $('#pros-analysis li').css("background-color", "");
+    $('#cons-analysis li').css("background-color", "");
+    $('#neutral-analysis li').css("background-color", "");
+
+    setDefaultSquareLighting();
+
+    explainCounter = 0;
+    explainLength = 0;
+    $('#next-button').hide();
+    $('#analysis-button').show();
+}
 
 //MY CODE: Board Analysis Functions
 function analyzeMaterial(analysis, gHistory) {
