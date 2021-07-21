@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            // applyFenString('4k3/p1ppp1pp/8/1p2p3/P2P1P2/8/P1P2PPP/4K3 w - - 0 1');
+            // applyFenString('7k/PPP5/8/8/8/8/8/K7 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -139,7 +139,7 @@ function onSnapEnd(source, target, piece) {
         optionsPosition[promotionSquares[2]] = 'wB';
         optionsPosition[promotionSquares[3]] = 'wR';
 
-        board.position(optionsPosition);
+        board.position(optionsPosition, useAnimation = false);
         promotionOccuring = true;
         darkenAllSquaresExcept(promotionSquares);
     } else {
@@ -214,7 +214,32 @@ function __promotionOption_squares(square) {
 
 function actionReplay(turnsAgo) {
     // RE-ANIMATE A MOVE. ONLY UPDATES VIEW. DOES NOT CHANGE GAME STATE. 
-    ;
+
+    if (turnsAgo == 0) {
+        throw Error("action replay");
+    }
+
+    var moves = [];
+    for (let i = 0; i < turnsAgo; i++) {
+        moves.push(game.undo());
+    }
+    board.position(game.fen(), useAnimation = false);
+
+    console.log("Undone Moves");
+    console.log(moves);
+    console.log("attempted move");
+    console.log(moves[0]);
+
+    var actionReplayFen = game.fen();
+    var moveReplay = moves[moves.length - 1];
+
+    for (let i = 0; i < turnsAgo; i++) {
+        game.move(moves.pop());
+    }
+    board.position(actionReplayFen, useAnimation = false);
+    console.log("Move replay");
+    console.log(moveReplay);
+    board.move(`${moveReplay.from}-${moveReplay.to}`);
 }
 
 function getFileSquares(file) {
@@ -498,7 +523,7 @@ function applyFenString(fen) {
     if (!game.load(fen)) {
         console.log("chess.js failed to load");
     }
-    board.position(game.fen());
+    board.position(game.fen(), useAnimation = false);
     initBoardPos = "fen " + fen;
 
 }
@@ -681,7 +706,8 @@ var config = {
     position: 'start',
     onDragStart: onDragStart,
     onDrop: onDrop,
-    onSnapEnd: onSnapEnd
+    onSnapEnd: onSnapEnd,
+    moveSpeed: 400
 }
 board = Chessboard('myBoard', config);
 
@@ -740,20 +766,27 @@ $('#next-button').click(function () {
         var neutralLength = $('#neutral-analysis li').length;
 
         var index = explainCounter;
+        var turnToReplay = 0;
 
         if (index < prosLength) {
             $('#pros-analysis li').eq(index).css("background-color", "#69140e");
             highlightSquares(analysisObject.pros[index].squares);
+            turnToReplay = (analysisObject.pros[index].turn === 'w' ? 2 : 1);
+            actionReplay(turnToReplay);
         } else {
             index -= prosLength;
             if (index < consLength) {
                 $('#cons-analysis li').eq(index).css("background-color", "#69140e");
                 highlightSquares(analysisObject.cons[index].squares);
+                turnToReplay = (analysisObject.cons[index].turn === 'w' ? 2 : 1);
+                actionReplay(turnToReplay);
             } else {
                 index -= consLength;
                 if (index < neutralLength) {
                     $('#neutral-analysis li').eq(index).css("background-color", "#69140e");
                     highlightSquares(analysisObject.neutral[index].squares);
+                    turnToReplay = (analysisObject.neutral[index].turn === 'w' ? 2 : 1);
+                    actionReplay(turnToReplay);
                 }
             }
         }
