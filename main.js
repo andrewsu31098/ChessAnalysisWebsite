@@ -8,6 +8,7 @@ var openingMap = {};
 var initBoardPos = "startpos";
 
 var promotionOccuring = false;
+var analysisOccuring = false;
 
 // Instantiate Opening Book
 $.getJSON('./eco.json', function (data) {
@@ -94,6 +95,10 @@ function onDragStart(source, piece, position, orientation) {
         return false;
     }
 
+    if (analysisOccuring) {
+        $('#warning-paragraph').text("Moves cannot be made during analysis");
+        return false;
+    }
 }
 
 function onDrop(source, target, piece) {
@@ -205,6 +210,11 @@ function __promotionOption_squares(square) {
 
     var promotionSquares = [s1, s2, s3, s4];
     return promotionSquares;
+}
+
+function actionReplay(turnsAgo) {
+    // RE-ANIMATE A MOVE. ONLY UPDATES VIEW. DOES NOT CHANGE GAME STATE. 
+    ;
 }
 
 function getFileSquares(file) {
@@ -517,6 +527,7 @@ function resetButtons() {
     $('#pros-analysis li').css("background-color", "");
     $('#cons-analysis li').css("background-color", "");
     $('#neutral-analysis li').css("background-color", "");
+    $('#warning-paragraph').empty();
 
     setDefaultSquareLighting();
 
@@ -524,6 +535,7 @@ function resetButtons() {
     explainLength = 0;
     $('#next-button').hide();
     $('#analysis-button').show();
+    analysisOccuring = false;
 }
 
 //MY CODE: Board Analysis Functions
@@ -539,7 +551,8 @@ function analyzeMaterial(analysis, gHistory) {
         var lostPieceCon = `Loss of material: ${__convert_chessLetter_to_fullName(blackLastMove.captured)} on ${squareCaptured}`;
         var materialObject = {
             statement: lostPieceCon,
-            squares: [squareCaptured]
+            squares: [squareCaptured],
+            turn: 'b'
         }
         analysis.cons.push(materialObject);
 
@@ -553,7 +566,8 @@ function analyzeMaterial(analysis, gHistory) {
         var wonPiecePro = `Won material: ${__convert_chessLetter_to_fullName(whiteLastMove.captured)} on ${squareCaptured}`;
         var materialObject = {
             statement: wonPiecePro,
-            squares: [squareCaptured]
+            squares: [squareCaptured],
+            turn: 'w'
         }
         analysis.pros.push(materialObject);
     }
@@ -579,7 +593,8 @@ function analyzeFiles(analysis, gHistory) {
         }
         var fileObject = {
             statement: fileStatement,
-            squares: getFileSquares(fileOpened)
+            squares: getFileSquares(fileOpened),
+            turn: 'b'
         }
         analysis.neutral.push(fileObject)
     }
@@ -597,7 +612,8 @@ function analyzeFiles(analysis, gHistory) {
         }
         var fileObject = {
             statement: fileStatement,
-            squares: getFileSquares(fileOpened)
+            squares: getFileSquares(fileOpened),
+            turn: 'w'
         }
         analysis.neutral.push(fileObject);
     }
@@ -620,7 +636,7 @@ function analyzeDiagonals(analysis, gHistory) {
         if (__diagonal_is_weak('b', startSquare, endSquare)) {
             diagonalObject.statement = `${startSquare} to ${endSquare} diagonal weakened for Black`;
             diagonalObject.squares = getDiagonalSquares(startSquare, endSquare);
-            // diagonalObject.squares = ['a1'];
+            diagonalObject.turn = 'b';
             analysis.pros.push(diagonalObject);
         }
 
@@ -631,7 +647,7 @@ function analyzeDiagonals(analysis, gHistory) {
         if (__diagonal_is_weak('w', startSquare, endSquare)) {
             diagonalObject.statement = `${startSquare} to ${endSquare} diagonal weakened for White`;
             diagonalObject.squares = getDiagonalSquares(startSquare, endSquare);
-            // diagonalObject.squares = ['a1'];
+            diagonalObject.turn = 'w';
             analysis.cons.push(diagonalObject);
         }
     }
@@ -655,6 +671,7 @@ function analyzePosition() {
     analysis = analyzeMaterial(analysis, gameHistory);
     analysis = analyzeFiles(analysis, gameHistory);
     analysis = analyzeDiagonals(analysis, gameHistory);
+
 
     return analysis;
 }
@@ -699,6 +716,7 @@ $('#analysis-button').click(function () {
 
         explainLength = analysisObject.pros.length + analysisObject.cons.length + analysisObject.neutral.length;
         if (explainLength > 0) {
+            analysisOccuring = true;
             $('#next-button').show();
             $('#analysis-button').hide();
         }
@@ -742,9 +760,6 @@ $('#next-button').click(function () {
         explainCounter++;
 
     } else {
-        explainCounter = 0;
-        explainLength = 0;
-        $('#next-button').hide();
-        $('#analysis-button').show();
+        resetButtons();
     }
 })
