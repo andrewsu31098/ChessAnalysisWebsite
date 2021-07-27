@@ -124,8 +124,6 @@ function onSnapEnd(source, target, piece) {
     // GUI FOR PROMOTION
     if (piece.slice(1).toLowerCase() == 'p' && reachedEndOfBoard('w', target)) {
 
-        console.log(__promotionOption_squares(target));
-
         var promotionSquares = __promotionOption_squares(target);
 
         var optionsPosition = {};
@@ -396,13 +394,32 @@ function is_Diagonal(start, end) {
     return false;
 }
 
+function allPiecesBetween(color, piece, start, end) {
+    var startFile = start.slice(0, 1);
+    var endFile = end.slice(0, 1);
+    var squares = [];
+
+    if (startFile === endFile) {
+        var foundSquare = pieceBetween(color, piece, start, end);
+
+        while (foundSquare && parseInt(foundSquare.slice(1)) <= 8) {
+            squares.push(foundSquare);
+            foundSquare = pieceBetween(color, piece, __increment_row(foundSquare), startFile + '8');
+        }
+    }
+
+    if (squares.length == 0) {
+        return false;
+    }
+    return squares;
+}
+
 function pieceBetween(color, piece, start, end) {
     // CHECKS IF A PIECE EXISTS BETWEEN TWO SQUARES
     // RETURNS SQUARE IF FOUND, FALSE OTHERWISE;
     // WORKS ONLY ON DIAGONALS AND FILES
     var startFile = start.slice(0, 1);
     var startRow = parseInt(start.slice(1));
-
     var endFile = end.slice(0, 1);
     var endRow = parseInt(end.slice(1));
 
@@ -492,7 +509,6 @@ function __diagonal_is_weak(color, start, end) {
             }
         }
     }
-    console.log("Num Defenders: " + numPawnDefenders);
     return (numPawnDefenders < 4);
 }
 
@@ -508,11 +524,8 @@ function isIsolatedPawn(color, square) {
     if (!centerHasMultiplePawns) {
         throw Error("isIsolatedPawn called on a non-pawn square");
     }
-    console.log("Center start: " + __increment_row(centerHasMultiplePawns));
-    console.log("Center end: " + centerHasMultiplePawns[0] + '8');
 
     centerHasMultiplePawns = pieceBetween(color, 'p', __increment_row(centerHasMultiplePawns), centerHasMultiplePawns[0] + '8');
-    console.log("centerBoolean: " + centerHasMultiplePawns);
     return !(leftHasPawns || rightHasPawns) && !centerHasMultiplePawns;
 }
 
@@ -637,6 +650,87 @@ function checkDoubledPawns(analysis, gHistory) {
             doubledPawnObject.squares = whiteDoubledPawns;
             doubledPawnObject.turn = 'w';
             analysis.cons.push(doubledPawnObject);
+        }
+    }
+}
+
+function isPassedPawn(color, square) {
+    if (game.get(square).type !== 'p')
+        throw Error("isPassedPawn not passed a pawn");
+    var enemyColor = (color == 'w') ? 'b' : 'w';
+    var leftFile = getFileSquares(__decrement_file(square).slice(0, 1));
+    var centerFile = getFileSquares(square.slice(0, 1));
+    var rightFile = getFileSquares(__increment_file(square).slice(0, 1));
+
+    if (color === 'w') {
+        return (!pieceBetween(enemyColor, 'p', __increment_row(__decrement_file(square)), leftFile[leftFile.length - 1]) &&
+            !pieceBetween(enemyColor, 'p', __increment_row(square), centerFile[centerFile.length - 1]) &&
+            !pieceBetween(enemyColor, 'p', __increment_row(__increment_file(square)), rightFile[rightFile.length - 1]));
+    } else if (color === 'b') {
+        return (!pieceBetween(enemyColor, 'p', leftFile[0], __decrement_row(__decrement_file(square))) &&
+            !pieceBetween(enemyColor, 'p', centerFile[0], __decrement_row(square)) &&
+            !pieceBetween(enemyColor, 'p', rightFile[0], __decrement_row(__increment_file(square))));
+    }
+
+}
+
+function checkPassedPawns(analysis, gHistory) {
+    var blackLastMove = gHistory[gHistory.length - 1];
+    var whiteLastMove = gHistory[gHistory.length - 2];
+
+    if (blackLastMove.piece === 'p' && blackLastMove.flags.includes('n')) {
+        if (isPassedPawn('b', blackLastMove.to)) {
+            var passedPawnObject = {};
+            passedPawnObject.statement = `Black's forward move has created a passed pawn on ${blackLastMove.to}`;
+            passedPawnObject.squares = [blackLastMove.to];
+            passedPawnObject.turn = 'b';
+            analysis.cons.push(passedPawnObject);
+        }
+    }
+    if (blackLastMove.captured === 'p') {
+        var travelingSquare = __decrement_file(blackLastMove.to);
+        for (let i = 0; i < 3; i++) {
+            var pawns = allPiecesBetween('b', 'p', travelingSquare.slice(0, 1) + '1', travelingSquare.slice(0, 1) + '8');
+            if (pawns) {
+                for (let i = 0; i < pawns.length; i++) {
+                    if (isPassedPawn('b', pawns[i])) {
+                        var passedPawnObject = {};
+                        passedPawnObject.statement = `Black has created a passed pawn on ${pawns[i]}`;
+                        passedPawnObject.squares = [pawns[i]];
+                        passedPawnObject.turn = 'b';
+                        analysis.cons.push(passedPawnObject);
+                    }
+                }
+            }
+            travelingSquare = __increment_file(travelingSquare);
+        }
+    }
+
+    if (whiteLastMove.piece === 'p' && whiteLastMove.flags.includes('n')) {
+        if (isPassedPawn('w', whiteLastMove.to)) {
+            var passedPawnObject = {};
+            passedPawnObject.statement = `White's forward move has created a passed pawn on ${whiteLastMove.to}`;
+            passedPawnObject.squares = [whiteLastMove.to];
+            passedPawnObject.turn = 'w';
+            analysis.pros.push(passedPawnObject);
+        }
+    }
+    if (whiteLastMove.captured === 'p') {
+        var travelingSquare = __decrement_file(whiteLastMove.to);
+        for (let i = 0; i < 3; i++) {
+            var pawns = allPiecesBetween('w', 'p', travelingSquare.slice(0, 1) + '1', travelingSquare.slice(0, 1) + '8');
+            if (pawns) {
+                for (let i = 0; i < pawns.length; i++) {
+                    if (isPassedPawn('w', pawns[i])) {
+                        var passedPawnObject = {};
+                        passedPawnObject.statement = `White has created a passed pawn on ${pawns[i]}`;
+                        passedPawnObject.squares = [pawns[i]];
+                        passedPawnObject.turn = 'w';
+                        analysis.pros.push(passedPawnObject);
+                    }
+                }
+            }
+            travelingSquare = __increment_file(travelingSquare);
         }
     }
 
@@ -829,7 +923,7 @@ function analyzePawnStructure(analysis, gHistory) {
 
     checkPawnIsolation(analysis, gHistory);
     checkDoubledPawns(analysis, gHistory);
-
+    checkPassedPawns(analysis, gHistory);
 }
 
 
