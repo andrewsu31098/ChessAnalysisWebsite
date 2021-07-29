@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            // applyFenString('4k3/8/8/pp1p2p1/PPPPPPPP/8/8/4K3 w - - 0 1');
+            applyFenString('3k4/8/8/2p5/7P/PP1PPPP1/8/3K4 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -153,6 +153,28 @@ function __convert_UCI_to_Verbose(uci) {
         verbose.promotion = uci.slice(4);
     }
     return verbose;
+}
+
+function getEnemyColor(color) {
+    switch (color) {
+        case 'b':
+            return 'w'
+        case 'w':
+            return 'b'
+        default:
+            throw Error("getEnemyColor not passed color");
+    }
+}
+
+function colorToFullColor(color) {
+    switch (color) {
+        case 'b':
+            return "black";
+        case 'w':
+            return "white";
+        default:
+            throw Error("colorToFullColor not passed color");
+    }
 }
 
 function __convert_chessLetter_to_fullName(chessLetter) {
@@ -756,6 +778,86 @@ function checkPassedPawns(analysis, gHistory) {
 
 }
 
+function isBackwardsPawn(color, square) {
+    if (game.get(square) && game.get(square).type !== 'p')
+        throw Error("isBackwardsPawn not passed a pawn");
+    var frontleft;
+    var frontright;
+    var left = __decrement_file(square);
+    var right = __increment_file(square);
+    var front = __increment_row(square);
+
+    if (color == 'w') {
+        frontleft = __decrement_file(__increment_row(square));
+        frontright = __increment_file(__increment_row(square));
+    } else {
+        frontleft = __decrement_file(__decrement_row(square));
+        frontright = __increment_file(__decrement_row(square));
+    }
+    frontleft = game.get(frontleft);
+    frontright = game.get(frontright);
+    if (!(frontleft && frontleft.type == 'p' && frontleft.color == color) && !(frontright && frontright.type == 'p' && frontright.color == color)) {
+        return false;
+    }
+    if (pieceBetween(color, 'p', giveStartOfBoard(color, left), left)) {
+        return false;
+    }
+    if (pieceBetween(color, 'p', giveStartOfBoard(color, right), right)) {
+        return false;
+    }
+    if (getNumDefenders(color, front) >= getNumDefenders(getEnemyColor(color), front)) {
+        return false;
+    }
+
+
+    return true;
+}
+
+function checkBackwardsPawns(analysis, gHistory) {
+    var blackLastMove = gHistory[gHistory.length - 1];
+    var whiteLastMove = gHistory[gHistory.length - 2];
+
+    var leftsquare;
+    var rightsquare;
+
+    var scanBackwardsPawn = (analysis, color, square) => {
+        var piece = game.get(square);
+        console.log("is hit!: " + square);
+        if (piece && piece.type === 'p') {
+            console.log("Pawn found on " + square);
+            console.log("Is backwards pawn?: " + isBackwardsPawn(color, square));
+        }
+        if (piece && piece.type === 'p' && isBackwardsPawn(color, square)) {
+            var backwardsObject = {
+                statement: `${colorToFullColor(color)} created a backwards pawn on ${square}`,
+                squares: [square],
+                turn: color
+            }
+            analysis.pros.push(backwardsObject);
+        }
+    }
+
+    if (blackLastMove.piece === 'p' && blackLastMove.flags.includes('n')) {
+        leftsquare = __decrement_file(blackLastMove.from);
+        rightsquare = __increment_file(blackLastMove.from);
+        scanBackwardsPawn(analysis, 'b', leftsquare);
+        scanBackwardsPawn(analysis, 'b', rightsquare);
+        if (blackLastMove.flags.includes('b')) {
+            scanBackwardsPawn(analysis, 'b', __decrement_row(leftsquare));
+            scanBackwardsPawn(analysis, 'b', __decrement_row(rightsquare));
+        }
+    }
+    if (whiteLastMove.piece === 'p' && whiteLastMove.flags.includes('n')) {
+        leftsquare = __decrement_file(whiteLastMove.from);
+        rightsquare = __increment_file(whiteLastMove.from);
+        scanBackwardsPawn(analysis, 'w', leftsquare);
+        scanBackwardsPawn(analysis, 'w', rightsquare);
+        if (whiteLastMove.flags.includes('w')) {
+            scanBackwardsPawn(analysis, 'w', __increment_row(leftsquare));
+            scanBackwardsPawn(analysis, 'w', __increment_row(rightsquare));
+        }
+    }
+}
 
 function getOpponentMoves() {
     // RETURN OPPONENTS POTENTIAL MOVES (WHEN IT'S NOT THEIR TURN)
@@ -844,6 +946,21 @@ function getNumDefenders(color, square) {
     return defenderNum;
 }
 
+function giveEndofBoard(color, square) {
+    if (color == 'w') {
+        return square.slice(0, 1) + '8';
+    } else {
+        return square.slice(0, 1) + '1';
+    }
+}
+
+function giveStartOfBoard(color, square) {
+    if (color == 'w') {
+        return square.slice(0, 1) + '1';
+    } else {
+        return square.slice(0, 1) + '8';
+    }
+}
 
 function reachedEndOfBoard(color, square) {
     // NEEDS UPDATING IF WANTING TO ALLOW BLACK PLAY
@@ -1029,6 +1146,7 @@ function analyzePawnStructure(analysis, gHistory) {
     checkPawnIsolation(analysis, gHistory);
     checkDoubledPawns(analysis, gHistory);
     checkPassedPawns(analysis, gHistory);
+    checkBackwardsPawns(analysis, gHistory);
 }
 
 
