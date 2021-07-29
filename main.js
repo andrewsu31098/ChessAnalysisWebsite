@@ -31,7 +31,7 @@ stock.onmessage = function (e) {
         case 'readyok':
             stock.postMessage('ucinewgame');
             // Update this fen string if you want a custom start pos.
-            applyFenString('4k3/8/pp1p2pp/1PPP1P2/8/8/8/3K4 w - - 0 1');
+            // applyFenString('4k3/8/8/pp1p2p1/PPPPPPPP/8/8/4K3 w - - 0 1');
             break;
 
         case 'bestmove':
@@ -290,6 +290,25 @@ function getDiagonalSquares(start, end) {
 }
 
 
+function isNextTo(square1, square2) {
+    var left = __decrement_file(square1);
+    var right = __increment_file(square1);
+    var up = __increment_row(square1);
+    var down = __decrement_row(square1);
+    var nw = __decrement_file(__increment_row(square1));
+    var ne = __increment_file(__increment_row(square1));
+    var sw = __decrement_file(__decrement_row(square1));
+    var se = __increment_file(__decrement_row(square1));
+    var neighbors = [left, right, up, down, nw, ne, sw, se];
+    for (let i = 0; i < neighbors.length; i++) {
+        if (neighbors[i] == square2)
+            return true;
+    }
+    if (square1 == square2)
+        return true;
+    return false;
+}
+
 function getAdjKing(color, square) {
     // RETURNS KINGS SQUARE IF ADJACENT TO THE GIVEN SQUARE. NULL OTHERWISE
     var squareFileCode = square.slice(0, 1).charCodeAt(0);
@@ -531,6 +550,7 @@ function isIsolatedPawn(color, square) {
 
 function checkPawnIsolation(analysis, gHistory) {
     //TODO: Check pawn isolation on pawn capture-promotion.
+    //TODO: Black and white pawns that isolate each other on capture and end on the same file are not reported as isolated.
     var blackLastMove = gHistory[gHistory.length - 1];
     var whiteLastMove = gHistory[gHistory.length - 2];
 
@@ -633,13 +653,13 @@ function checkDoubledPawns(analysis, gHistory) {
     var blackDoubledPawns;
     var whiteDoubledPawns;
     if (blackLastMove.captured && blackLastMove.piece === 'p' && !reachedEndOfBoard('b', blackLastMove.to)) {
-        blackDoubledPawns = isDoubledPawn('b', whiteLastMove.to);
+        blackDoubledPawns = isDoubledPawn('b', blackLastMove.to);
         if (blackDoubledPawns) {
             var doubledPawnObject = {};
             doubledPawnObject.statement = "Blacks capture has doubled his pawns";
             doubledPawnObject.squares = blackDoubledPawns;
             doubledPawnObject.turn = 'b';
-            analysis.cons.push(doubledPawnObject);
+            analysis.pros.push(doubledPawnObject);
         }
     }
     if (whiteLastMove.captured && whiteLastMove.piece === 'p' && !reachedEndOfBoard('w', whiteLastMove.to)) {
@@ -695,7 +715,7 @@ function checkPassedPawns(analysis, gHistory) {
                 for (let i = 0; i < pawns.length; i++) {
                     if (isPassedPawn('b', pawns[i])) {
                         var passedPawnObject = {};
-                        passedPawnObject.statement = `Black has created a passed pawn on ${pawns[i]}`;
+                        passedPawnObject.statement = `Black gained a passed pawn on ${pawns[i]}`;
                         passedPawnObject.squares = [pawns[i]];
                         passedPawnObject.turn = 'b';
                         analysis.cons.push(passedPawnObject);
@@ -723,7 +743,7 @@ function checkPassedPawns(analysis, gHistory) {
                 for (let i = 0; i < pawns.length; i++) {
                     if (isPassedPawn('w', pawns[i])) {
                         var passedPawnObject = {};
-                        passedPawnObject.statement = `White has created a passed pawn on ${pawns[i]}`;
+                        passedPawnObject.statement = `White gained a passed pawn on ${pawns[i]}`;
                         passedPawnObject.squares = [pawns[i]];
                         passedPawnObject.turn = 'w';
                         analysis.pros.push(passedPawnObject);
@@ -734,6 +754,94 @@ function checkPassedPawns(analysis, gHistory) {
         }
     }
 
+}
+
+
+function getOpponentMoves() {
+    // RETURN OPPONENTS POTENTIAL MOVES (WHEN IT'S NOT THEIR TURN)
+    let gameFen = game.fen();
+    let gamePGN = game.pgn()
+
+    game.load(gameFen);
+    let tokens = game.fen().split(' ')
+    tokens[1] = tokens[1] === 'w' ? 'b' : 'w';
+    tokens[3] = '-';
+
+    game.load(tokens.join(' '))
+    let moves = game.moves({
+        verbose: true
+    })
+
+    tokens = game.fen().split(' ')
+    tokens[1] = tokens[1] === 'w' ? 'b' : 'w'
+
+    game.load_pgn(gamePGN)
+
+    return moves
+}
+
+function placeKingInRandomSafeSquare(color, squareOfInterest) {
+    for (let row = 1; row < 9; row++) {
+        for (let col = 0; col < 8; col++) {
+            var square = String.fromCharCode('a'.charCodeAt(0) + col) + row;
+            if (!game.get(square) && !isNextTo(square, squareOfInterest)) {
+                game.put({
+                    color: color,
+                    type: 'k'
+                }, square);
+                if (game.in_check()) {
+                    game.remove(square);
+                } else {
+                    return square;
+                }
+            }
+
+        }
+    }
+}
+
+function removeKingFromRandomSquare(square) {
+    game.remove(square);
+}
+
+function getNumDefenders(color, square) {
+    // RETURNS NUMBER OF DEFENDERS TO A SQUARE
+    // CODE:: 1. REMOVES PIECE ON "square". 2. PLACES ENEMY PIECE ON "square".
+    // CODE:: 3. RETURNS HOW MANY PIECES CAN CAPTURE ON "square". 4. REVERT TO ORIGINAL. 
+    // CODE:: 4.5 IF PIECE ON "square" IS KING, PLACE SOMEWHERE ELSE, BECAUSE CANNOT REMOVE.
+    var enemyColor = (color === 'w') ? 'b' : 'w';
+    var defenderNum = 0;
+    var originalPiece = game.remove(square);
+    var fakeKingsSquare;
+    if (originalPiece && originalPiece.type == 'k' && originalPiece.color == color) {
+        fakeKingsSquare = placeKingInRandomSafeSquare(color, square);
+    }
+
+    game.put({
+        type: 'p',
+        color: enemyColor
+    }, square);
+
+    var moves = (color == game.turn()) ? game.moves({
+        verbose: true
+    }) : getOpponentMoves();
+    for (let i = 0; i < moves.length; i++) {
+        if (moves[i].color === color && moves[i].to === square && moves[i].flags.includes('c'))
+            defenderNum++;
+    }
+
+    game.remove(square);
+
+    if (originalPiece && originalPiece.type == 'k' && originalPiece.color == color) {
+        removeKingFromRandomSquare(fakeKingsSquare);
+    }
+    if (originalPiece) {
+        game.put({
+            color: originalPiece.color,
+            type: originalPiece.type
+        }, square)
+    }
+    return defenderNum;
 }
 
 
@@ -918,9 +1026,6 @@ function analyzeDiagonals(analysis, gHistory) {
 }
 
 function analyzePawnStructure(analysis, gHistory) {
-    var blackLastMove = gHistory[gHistory.length - 1];
-    var whiteLastMove = gHistory[gHistory.length - 2];
-
     checkPawnIsolation(analysis, gHistory);
     checkDoubledPawns(analysis, gHistory);
     checkPassedPawns(analysis, gHistory);
@@ -957,6 +1062,21 @@ var config = {
 }
 board = Chessboard('myBoard', config);
 
+
+function defendersOfAll() {
+    // FUNCTION FOR TESTING PURPOSES. REMOVE AFTERWARDS
+    for (let i = 0; i < 8; i++) {
+        var x = "";
+        for (let j = 0; j < 8; j++) {
+            var z = 'a'.charCodeAt(0) + j;
+            z = String.fromCharCode(z);
+            // alert(z + (i + 1));
+            x += getNumDefenders('w', z + (i + 1)).toString() + " ";
+        }
+        console.log(x);
+    }
+}
+
 //DOM INTERACTION
 
 var explainCounter = 0;
@@ -970,7 +1090,6 @@ $('#analysis-button').click(function () {
         $('#explanation-paragraph').text("Book Opening: " + openingMap[fen].name);
     } else {
         var analysisObject = analyzePosition();
-        console.log(analysisObject);
         $("#explanation-paragraph").text("");
 
         $('#pros-analysis').empty();
