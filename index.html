@@ -1,56 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chess Elaborator</title>
 
+    <link rel="stylesheet" href="main.css" />
+    <link
+      rel="stylesheet"
+      href=".\node_modules\@chrisoakman\chessboardjs\dist\chessboard-1.0.0.css"
+    />
+  </head>
 
-    <link rel="stylesheet" href="main.css">
-    <link rel="stylesheet" href=".\node_modules\@chrisoakman\chessboardjs\dist\chessboard-1.0.0.css">
-
-
-</head>
-
-<body>
+  <body>
     <h1>Chess Elaborator</h1>
     <div class="main-container">
-        <div id="myBoard" style="width: 450px"></div>
-        <div id="info-flex-container">
-            <div id="explanation-container">
-                <p id="explanation-paragraph"> <b>Welcome to Chess Explainer.</b> <br>
-                    Click the analyze button below to see a detailed explanation of your last
-                    move. <br>
-                    Note: Book moves are not explained, as the theory
-                    already exists.
-                </p>
-                <p id="warning-paragraph"></p>
-                <ul id="pros-analysis">
-                </ul>
-                <ul id="cons-analysis">
-                </ul>
-                <ul id="neutral-analysis">
-                </ul>
-                <button id="analysis-button">
-                    Analyze the last move.
-                </button>
-                <button id="next-button" hidden>
-                    Next
-                </button>
-            </div>
+      <div id="myBoard" style="width: 450px"></div>
+      <div id="info-flex-container">
+        <div id="explanation-container">
+          <p class="explanation-paragraph" style="color: #e0ffff">
+            Welcome to Chess Explainer.
+          </p>
+          <ul class="explanation-paragraph">
+            <li style="color: #e7903c">Play against the Chess A.I.</li>
+            <li style="color: #fde3a7">
+              Chess Explainer will identify all known book openings.
+            </li>
+            <li style="color: #c8f7c5">
+              Pressing <b>Analyze</b> will have Chess Explainer explain any
+              position.
+            </li>
+            <li style="color: #bbd4d4">
+              Book openings currently do not have an analysis feature.
+            </li>
+          </ul>
+          <p class="explanation-paragraph">
+            Click Analyze after playing a move!
+          </p>
+          <p id="warning-paragraph"></p>
+          <ul id="pros-analysis"></ul>
+          <ul id="cons-analysis"></ul>
+          <ul id="neutral-analysis"></ul>
+          <button id="analysis-button"><b>Analyze</b></button>
+          <button id="next-button" hidden>Next</button>
         </div>
+      </div>
     </div>
 
-
-
-    <script src="https://code.jquery.com/jquery-3.6.0.js"
-        integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
     <script src=".\node_modules\@chrisoakman\chessboardjs\dist\chessboard-1.0.0.min.js"></script>
     <script src=".\node_modules\chess.js\chess.js"></script>
     <script src=".\stockfish.js"></script>
     <script src="main.js"></script>
-</body>
-
+    <script src="controller.js"></script>
+  </body>
 </html>
