@@ -1085,6 +1085,8 @@ function getNumDefenders(color, square) {
 
 function getPossibleSquares(color, square, piece) {
   if (game.get(square).type !== piece)
+    //Piece passed in was captured potentially;
+
     throw Error("getNumMoves not passed correct piece for square");
 
   var moves =
@@ -1353,11 +1355,16 @@ function analyzeDevelopment(analysis, gHistory) {
       blackLastMove.piece
     );
     redoGameState(moves);
-    var newPossibles = getPossibleSquares(
-      "b",
-      blackLastMove.to,
-      blackLastMove.piece
-    );
+    try {
+      var newPossibles = getPossibleSquares(
+        "b",
+        blackLastMove.to,
+        blackLastMove.piece
+      );
+    } catch (err) {
+      var newPossibles = oldPossibles;
+    }
+
     if (newPossibles.length >= oldPossibles.length + 3) {
       newPossibles.push(blackLastMove.to);
       var developmentObject = {};
@@ -1378,11 +1385,15 @@ function analyzeDevelopment(analysis, gHistory) {
       whiteLastMove.piece
     );
     redoGameState(moves);
-    var newPossibles = getPossibleSquares(
-      "w",
-      whiteLastMove.to,
-      whiteLastMove.piece
-    );
+    try {
+      var newPossibles = getPossibleSquares(
+        "w",
+        whiteLastMove.to,
+        whiteLastMove.piece
+      );
+    } catch (err) {
+      var newPossibles = oldPossibles;
+    }
     console.log("Old length: " + oldPossibles.length);
     console.log(oldPossibles);
     console.log("New Length: " + newPossibles.length);

@@ -2,6 +2,13 @@
 var explainCounter = 0;
 var explainLength = 0;
 
+function clearButtons() {
+  resetButtons();
+  $("#pros-analysis").empty();
+  $("#cons-analysis").empty();
+  $("#neutral-analysis").empty();
+}
+
 $("#analysis-button").click(function () {
   var fen = game.fen().split(" ").slice(0, 3).join(" ");
   if (promotionOccuring) {
@@ -98,4 +105,11 @@ $("#next-button").click(function () {
   } else {
     resetButtons();
   }
+});
+
+$("#reset-button").click(function () {
+  applyFenString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+  moveList = "";
+  stock.postMessage("ucinewgame");
+  clearButtons();
 });
